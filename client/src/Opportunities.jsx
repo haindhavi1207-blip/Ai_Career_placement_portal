@@ -1,79 +1,100 @@
 import React from "react";
+import { OpportunityCard } from "./Components";
 import { internships, placements, startups } from "./data";
 
-function Opportunities({ search }) {
+// Each section describes: its heading, its data source, what to show as the
+// "extra" highlight, and how to map a raw data item to what OpportunityCard needs.
+const SECTIONS = [
+  {
+    title: "Internships",
+    data: internships,
+    getProps: (job) => ({
+      company: job.company,
+      role: job.role,
+      location: job.location,
+      extra: job.stipend,
+      deadline: job.deadline,
+    }),
+  },
+  {
+    title: "Placements",
+    data: placements,
+    getProps: (job) => ({
+      company: job.company,
+      role: job.role,
+      location: job.location,
+      extra: job.package,
+      deadline: job.deadline,
+    }),
+  },
+  {
+    title: "Startup Opportunities",
+    data: startups,
+    getProps: (job) => ({
+      company: job.company,
+      role: job.role,
+      location: job.funding,
+      extra: "Startup Hiring",
+      deadline: job.deadline,
+    }),
+  },
+];
+
+function Opportunities({ search = "" }) {
+  const query = search.trim().toLowerCase();
+
   const filterData = (list) =>
-    list.filter((item) =>
-      item.company.toLowerCase().includes(search.toLowerCase())
-    );
+    query
+      ? list.filter((item) => item.company.toLowerCase().includes(query))
+      : list;
 
   const applyJob = (company) => {
-    alert(`Applied successfully to ${company}!`);
+    // Later: hook this up to a real applications API/backend.
+    console.log(`Applied to ${company}`);
   };
 
-  const JobCard = ({ job, extra }) => (
-    <div className="job-card">
-      <h2>{job.company}</h2>
-
-      <p><strong>Role:</strong> {job.role}</p>
-
-      <p><strong>Location:</strong> {job.location}</p>
-
-      <p className="highlight">{extra}</p>
-
-      <button
-        className="apply-btn"
-        onClick={() => applyJob(job.company)}
-      >
-        Apply Now
-      </button>
-    </div>
+  const totalResults = SECTIONS.reduce(
+    (sum, section) => sum + filterData(section.data).length,
+    0
   );
 
   return (
     <div>
-
       <h1 className="page-title">Career Opportunities</h1>
 
-      <h2 className="section-title">Internships</h2>
+      {query && (
+        <p className="dashboard-subtitle">
+          {totalResults > 0
+            ? `Showing ${totalResults} result${totalResults === 1 ? "" : "s"} for "${search}"`
+            : `No opportunities found for "${search}"`}
+        </p>
+      )}
 
-      <div className="job-grid">
-        {filterData(internships).map((job) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            extra={job.stipend}
-          />
-        ))}
-      </div>
+      {SECTIONS.map((section) => {
+        const filtered = filterData(section.data);
 
-      <h2 className="section-title">Placements</h2>
+        return (
+          <React.Fragment key={section.title}>
+            <h2 className="section-title">{section.title}</h2>
 
-      <div className="job-grid">
-        {filterData(placements).map((job) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            extra={job.package}
-          />
-        ))}
-      </div>
-
-      <h2 className="section-title">Startup Opportunities</h2>
-
-      <div className="job-grid">
-        {filterData(startups).map((job) => (
-          <JobCard
-            key={job.id}
-            job={{
-              ...job,
-              location: job.funding,
-            }}
-            extra="Startup Hiring"
-          />
-        ))}
-      </div>
-
+            {filtered.length > 0 ? (
+              <div className="job-grid">
+                {filtered.map((job) => (
+                  <OpportunityCard
+                    key={job.id}
+                    {...section.getProps(job)}
+                    onApply={() => applyJob(job.company)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="empty-state">
+                No {section.title.toLowerCase()} match your search.
+              </p>
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }

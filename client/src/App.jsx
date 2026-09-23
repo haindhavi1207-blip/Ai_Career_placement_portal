@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./index.css";
 
 import Home from "./Home";
@@ -7,179 +7,112 @@ import Profile from "./Profile";
 import Opportunities from "./Opportunities";
 import AISection from "./AISection";
 import RecruiterAdmin from "./RecruiterAdmin";
+import StartupDashboard from "./StartupDashboard";
 
 import { Sidebar, Navbar } from "./Components";
 
-function App() {
+// Central config for each role: title shown in navbar, whether the
+// sidebar is shown, and which student-style "page" nav it uses (if any).
+const ROLE_CONFIG = {
+  Student: { title: "🎓 Student Dashboard", showSidebar: true },
+  Company: { title: "🏢 Recruiter Dashboard", showSidebar: false },
+  Startup: { title: "🚀 Startup Dashboard", showSidebar: true },
+  Admin: { title: "⚙️ Admin Dashboard", showSidebar: false },
+};
 
-  const [role, setRole] = useState("Home");
-  const [page, setPage] = useState("Dashboard");
+function App() {
+  const [role, setRole] = useState(
+    () => localStorage.getItem("app_role") || "Home"
+  );
+  const [page, setPage] = useState(
+    () => localStorage.getItem("app_page") || "Dashboard"
+  );
   const [search, setSearch] = useState("");
 
-  // ================= HOME =================
+  // Persist session across refreshes so users aren't logged out
+  // every time they reload the page.
+  useEffect(() => {
+    localStorage.setItem("app_role", role);
+  }, [role]);
 
+  useEffect(() => {
+    localStorage.setItem("app_page", page);
+  }, [page]);
+
+  // Different roles have different sidebar menus (Student vs Startup),
+  // so switching roles should land on that role's Dashboard, not
+  // whatever page was last open for the previous role.
+  useEffect(() => {
+    setPage("Dashboard");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role]);
+
+  const handleLogout = () => {
+    setRole("Home");
+    setPage("Dashboard");
+    setSearch("");
+    localStorage.removeItem("app_role");
+    localStorage.removeItem("app_page");
+  };
+
+  // ================= HOME =================
   if (role === "Home") {
     return <Home setPage={setRole} />;
   }
 
-  // ================= STUDENT =================
+  const config = ROLE_CONFIG[role];
 
-  if (role === "Student") {
-
+  // Unknown role fallback — prevents a blank screen if state gets corrupted.
+  if (!config) {
     return (
-
       <div className="app">
-
-        <Sidebar
-          currentPage={page}
-          setCurrentPage={setPage}
-        />
-
         <div className="main">
-
-          <Navbar
-            title="🎓 Student Dashboard"
-            search={search}
-            setSearch={setSearch}
-          />
-
-          {page === "Dashboard" && <Dashboard />}
-
-          {page === "Profile" && <Profile />}
-
-          {(page === "Internships" ||
-            page === "Placements" ||
-            page === "Startups") && (
-            <Opportunities search={search} />
-          )}
-
-          {page === "AI Tools" && <AISection />}
-
-          <button
-            className="logout-btn"
-            onClick={()=>{
-              setRole("Home");
-              setPage("Dashboard");
-            }}
-          >
-            🚪 Logout
+          <p>Something went wrong. Please log in again.</p>
+          <button className="logout-btn" onClick={handleLogout}>
+            🚪 Back to Home
           </button>
-
         </div>
-
       </div>
-
     );
-
   }
 
-  // ================= RECRUITER =================
+  // Renders the correct main content for the current role + page.
+  const renderContent = () => {
+    if (role === "Student") {
+      if (page === "Dashboard") return <Dashboard />;
+      if (page === "Profile") return <Profile />;
+      if (["Internships", "Placements", "Startups"].includes(page)) {
+        return <Opportunities search={search} />;
+      }
+      if (page === "AI Tools") return <AISection />;
+      return <Dashboard />;
+    }
 
-  if (role === "Company") {
+    if (role === "Company") return <RecruiterAdmin role="Company" />;
+    if (role === "Startup")
+      return <StartupDashboard activeTab={page} search={search} />;
+    if (role === "Admin") return <RecruiterAdmin />;
 
-    return (
+    return null;
+  };
 
-      <div className="app">
+  return (
+    <div className="app">
+      {config.showSidebar && (
+        <Sidebar currentPage={page} setCurrentPage={setPage} role={role} />
+      )}
 
-        <div className="main">
+      <div className="main">
+        <Navbar title={config.title} search={search} setSearch={setSearch} />
 
-          <Navbar
-            title="🏢 Recruiter Dashboard"
-            search={search}
-            setSearch={setSearch}
-          />
+        {renderContent()}
 
-          <RecruiterAdmin role="Company" />
-
-          <button
-            className="logout-btn"
-            onClick={()=>{
-              setRole("Home");
-            }}
-          >
-            🚪 Logout
-          </button>
-
-        </div>
-
+        <button className="logout-btn" onClick={handleLogout}>
+          🚪 Logout
+        </button>
       </div>
-
-    );
-
-  }
-
-  // ================= STARTUP =================
-
-  if (role === "Startup") {
-
-    return (
-
-      <div className="app">
-
-        <div className="main">
-
-          <Navbar
-            title="🚀 Startup Dashboard"
-            search={search}
-            setSearch={setSearch}
-          />
-
-          <Opportunities search={search} />
-
-          <button
-            className="logout-btn"
-            onClick={()=>{
-              setRole("Home");
-            }}
-          >
-            🚪 Logout
-          </button>
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
-  // ================= ADMIN =================
-
-  if (role === "Admin") {
-
-    return (
-
-      <div className="app">
-
-        <div className="main">
-
-          <Navbar
-            title="⚙️ Admin Dashboard"
-            search={search}
-            setSearch={setSearch}
-          />
-
-          <RecruiterAdmin />
-
-          <button
-            className="logout-btn"
-            onClick={()=>{
-              setRole("Home");
-            }}
-          >
-            🚪 Logout
-          </button>
-
-        </div>
-
-      </div>
-
-    );
-
-  }
-
-  return null;
-
+    </div>
+  );
 }
 
 export default App;
